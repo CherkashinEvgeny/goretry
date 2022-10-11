@@ -17,7 +17,7 @@ func ExecContext(
 			return
 		}
 		if isUnrecoverable(err) {
-			err, _ = getUnrecoverableErrorCause(err)
+			err = getUnrecoverableErrorCause(err)
 			return
 		}
 		if isContextCancelled(ctx) {

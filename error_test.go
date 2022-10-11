@@ -8,9 +8,8 @@ import (
 
 var testError = errors.New("test")
 
-func TestUnrecoverableCause(t *testing.T) {
+func TestGetUnrecoverableCause(t *testing.T) {
 	unrecErr := Unrecoverable(testError)
-	causeErr, ok := getUnrecoverableErrorCause(unrecErr)
-	assert.Assert(t, ok)
+	causeErr := getUnrecoverableErrorCause(unrecErr)
 	assert.Equal(t, testError, causeErr)
 }
