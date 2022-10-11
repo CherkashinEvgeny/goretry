@@ -18,7 +18,7 @@ func TestCompositeStrategy(t *testing.T) {
 			return false
 		}),
 	)
-	attempt := strategy.Attempt(context.Background())
+	attempt := strategy.Attempt(context.Background(), 0)
 	assert.False(t, attempt)
 }
 
@@ -33,25 +33,25 @@ func TestSequentialStrategy(t *testing.T) {
 		}),
 	)
 	for retryNumber < 10 {
-		attempt := strategy.Attempt(context.Background())
+		attempt := strategy.Attempt(context.Background(), retryNumber)
 		assert.True(t, attempt)
 		retryNumber++
 	}
-	attempt := strategy.Attempt(context.Background())
+	attempt := strategy.Attempt(context.Background(), retryNumber)
 	assert.False(t, attempt)
 }
 
 func TestDelayedStrategy(t *testing.T) {
 	delays := []time.Duration{time.Second, time.Second / 2, time.Second / 4}
 	strategy := Delays(time.Second, time.Second/2, time.Second/4)
-	for _, delay := range delays {
+	for retryNumber, delay := range delays {
 		start := time.Now()
-		attempt := strategy.Attempt(context.Background())
+		attempt := strategy.Attempt(context.Background(), retryNumber)
 		stop := time.Now()
 		assert.True(t, attempt)
 		assert.True(t, stop.Sub(start) >= delay)
 	}
-	attempt := strategy.Attempt(context.Background())
+	attempt := strategy.Attempt(context.Background(), len(delays))
 	assert.False(t, attempt)
 }
 
@@ -63,7 +63,7 @@ func TestFunctionStrategy(t *testing.T) {
 		return
 	})
 	for retryNumber := 0; retryNumber < 1000; retryNumber++ {
-		attempt := strategy.Attempt(context.Background())
+		attempt := strategy.Attempt(context.Background(), retryNumber)
 		assert.Equal(t, value, attempt)
 	}
 }
@@ -71,7 +71,7 @@ func TestFunctionStrategy(t *testing.T) {
 func TestInfiniteStrategy(t *testing.T) {
 	strategy := Infinite()
 	for retryNumber := 0; retryNumber < 1000; retryNumber++ {
-		attempt := strategy.Attempt(context.Background())
+		attempt := strategy.Attempt(context.Background(), retryNumber)
 		assert.True(t, attempt)
 	}
 }
@@ -83,7 +83,7 @@ func TestMaxAttemptsStrategy(t *testing.T) {
 	retryNumber := 0
 	for {
 		retryCount++
-		attempt := strategy.Attempt(context.Background())
+		attempt := strategy.Attempt(context.Background(), retryNumber)
 		if !attempt {
 			break
 		}
@@ -97,7 +97,7 @@ func TestFixedDelayStrategy(t *testing.T) {
 	strategy := FixedDelay(delay)
 	for retryNumber := 0; retryNumber < 5; retryNumber++ {
 		start := time.Now()
-		attempt := strategy.Attempt(context.Background())
+		attempt := strategy.Attempt(context.Background(), retryNumber)
 		stop := time.Now()
 		assert.Equal(t, true, attempt)
 		assert.True(t, stop.Sub(start) >= delay)
@@ -123,7 +123,7 @@ func TestLinearDelayStrategy(t *testing.T) {
 	strategy := LinearDelay(delay, time.Second)
 	for retryNumber := 0; retryNumber < 5; retryNumber++ {
 		start := time.Now()
-		attempt := strategy.Attempt(context.Background())
+		attempt := strategy.Attempt(context.Background(), retryNumber)
 		stop := time.Now()
 		assert.True(t, attempt)
 		assert.True(t, stop.Sub(start) >= delay)
@@ -136,7 +136,7 @@ func TestPowDelayStrategy(t *testing.T) {
 	strategy := PowDelay(delay, math.Sqrt2)
 	for retryNumber := 0; retryNumber < 10; retryNumber++ {
 		start := time.Now()
-		attempt := strategy.Attempt(context.Background())
+		attempt := strategy.Attempt(context.Background(), retryNumber)
 		stop := time.Now()
 		assert.True(t, attempt)
 		assert.True(t, stop.Sub(start) >= delay)
