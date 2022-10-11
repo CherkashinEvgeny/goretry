@@ -15,15 +15,15 @@ func DefaultStrategy() Strategy {
 	return Compose(MaxAttempts(10), PowDelay(100*time.Millisecond, math.Sqrt2))
 }
 
-func Compose(strategies ...Strategy) Strategy {
-	return compositeStrategy{strategies: strategies}
+func Compose(strategies ...Strategy) CompositeStrategy {
+	return CompositeStrategy{strategies}
 }
 
-type compositeStrategy struct {
+type CompositeStrategy struct {
 	strategies []Strategy
 }
 
-func (s compositeStrategy) Attempt(ctx context.Context) (attempt bool) {
+func (s CompositeStrategy) Attempt(ctx context.Context) (attempt bool) {
 	attempt = true
 	for index := 0; attempt && index < len(s.strategies); index++ {
 		attempt = s.strategies[index].Attempt(ctx)
@@ -31,16 +31,19 @@ func (s compositeStrategy) Attempt(ctx context.Context) (attempt bool) {
 	return
 }
 
-func Delays(delays ...time.Duration) Strategy {
-	return &delayedStrategy{index: 0, delays: delays}
+func Delays(delays ...time.Duration) *DelayedStrategy {
+	return &DelayedStrategy{
+		index:  0,
+		delays: delays,
+	}
 }
 
-type delayedStrategy struct {
+type DelayedStrategy struct {
 	index  int
 	delays []time.Duration
 }
 
-func (s *delayedStrategy) Attempt(ctx context.Context) (attempt bool) {
+func (s *DelayedStrategy) Attempt(ctx context.Context) (attempt bool) {
 	attempt = s.index < len(s.delays)
 	if !attempt {
 		return
@@ -53,44 +56,43 @@ func (s *delayedStrategy) Attempt(ctx context.Context) (attempt bool) {
 
 type StrategyFunc func(ctx context.Context) (attempt bool)
 
-func Function(retryFunc StrategyFunc) Strategy {
-	return funcStrategy{retryFunc: retryFunc}
+func Function(retryFunc StrategyFunc) FuncStrategy {
+	return FuncStrategy{retryFunc}
 }
 
-type funcStrategy struct {
+type FuncStrategy struct {
 	retryFunc StrategyFunc
 }
 
-func (s funcStrategy) Attempt(ctx context.Context) (attempt bool) {
+func (s FuncStrategy) Attempt(ctx context.Context) (attempt bool) {
 	return s.retryFunc(ctx)
 }
 
-func Infinite() Strategy {
+func Infinite() *InfiniteAttemptsStrategy {
 	return infiniteAttemptStrategyPtr
 }
 
-var infiniteAttemptStrategyPtr = &infiniteAttemptsStrategy{}
+var infiniteAttemptStrategyPtr = &InfiniteAttemptsStrategy{}
 
-type infiniteAttemptsStrategy struct {
-	remainingAttempts int
+type InfiniteAttemptsStrategy struct {
 }
 
-func (s *infiniteAttemptsStrategy) Attempt(_ context.Context) (attempt bool) {
+func (s *InfiniteAttemptsStrategy) Attempt(_ context.Context) (attempt bool) {
 	return true
 }
 
-func MaxAttempts(attempts int) Strategy {
-	return &maxAttemptsStrategy{
+func MaxAttempts(attempts int) *MaxRetriesStrategy {
+	return &MaxRetriesStrategy{
 		// -1 because attempts parameter is max function call count, and remainingAttempts parameter is max function rerun count
 		remainingAttempts: attempts - 1,
 	}
 }
 
-type maxAttemptsStrategy struct {
+type MaxRetriesStrategy struct {
 	remainingAttempts int
 }
 
-func (s *maxAttemptsStrategy) Attempt(_ context.Context) (attempt bool) {
+func (s *MaxRetriesStrategy) Attempt(_ context.Context) (attempt bool) {
 	attempt = s.remainingAttempts > 0
 	if attempt {
 		s.remainingAttempts--
@@ -98,53 +100,51 @@ func (s *maxAttemptsStrategy) Attempt(_ context.Context) (attempt bool) {
 	return
 }
 
-func FixedDelay(delay time.Duration) Strategy {
-	return fixedDelayStrategy{delay: delay}
+func FixedDelay(delay time.Duration) FixedDelayStrategy {
+	return FixedDelayStrategy{delay}
 }
 
-type fixedDelayStrategy struct {
+type FixedDelayStrategy struct {
 	delay time.Duration
 }
 
-func (s fixedDelayStrategy) Attempt(ctx context.Context) (attempt bool) {
-	attempt = true
+func (s FixedDelayStrategy) Attempt(ctx context.Context) (attempt bool) {
 	return Sleep(ctx, s.delay)
 }
 
-func RandomDelay(min time.Duration, max time.Duration) Strategy {
-	return randomDelayStrategy{
+func RandomDelay(min time.Duration, max time.Duration) RandomDelayStrategy {
+	return RandomDelayStrategy{
 		min: min,
 		max: max,
 	}
 }
 
-type randomDelayStrategy struct {
+type RandomDelayStrategy struct {
 	min time.Duration
 	max time.Duration
 }
 
-func (s randomDelayStrategy) Attempt(ctx context.Context) (attempt bool) {
+func (s RandomDelayStrategy) Attempt(ctx context.Context) (attempt bool) {
 	delay := s.min + time.Duration(rand.Int63()%int64(s.max-s.min))
 	return Sleep(ctx, delay)
 }
 
-func ExpDelay(seed time.Duration) Strategy {
+func ExpDelay(seed time.Duration) *PowDelayStrategy {
 	return PowDelay(seed, math.E)
 }
 
-func PowDelay(seed time.Duration, base float64) Strategy {
-	return &powStrategy{base: base, delay: seed}
+func PowDelay(seed time.Duration, base float64) *PowDelayStrategy {
+	return &PowDelayStrategy{delay: seed, base: base}
 }
 
-type powStrategy struct {
-	base  float64
+type PowDelayStrategy struct {
 	delay time.Duration
+	base  float64
 }
 
-func (e *powStrategy) Attempt(ctx context.Context) (attempt bool) {
-	delay := e.delay
-	e.delay = time.Duration(e.base * float64(e.delay))
-	return Sleep(ctx, delay)
+func (e *PowDelayStrategy) Attempt(ctx context.Context) (attempt bool) {
+	e.delay = time.Duration(float64(e.delay) * e.base)
+	return Sleep(ctx, e.delay)
 }
 
 func Sleep(ctx context.Context, delay time.Duration) bool {
