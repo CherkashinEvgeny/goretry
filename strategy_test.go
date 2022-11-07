@@ -3,6 +3,7 @@ package retry
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
+	"math"
 	"math/rand"
 	"testing"
 	"time"
@@ -94,6 +95,19 @@ func TestLinearDelayStrategy(t *testing.T) {
 		assert.True(t, attempt)
 		assert.True(t, stop.Sub(start) >= delay)
 		delay += time.Second
+	}
+}
+
+func TestPowDelayStrategy(t *testing.T) {
+	delay := 100 * time.Millisecond
+	strategy := PowDelay(delay, math.Sqrt2)
+	for retryNumber := 0; retryNumber < 10; retryNumber++ {
+		start := time.Now()
+		attempt := strategy.Attempt(context.Background(), retryNumber)
+		stop := time.Now()
+		assert.True(t, attempt)
+		assert.True(t, stop.Sub(start) >= delay)
+		delay = time.Duration(float64(delay) * math.Sqrt2)
 	}
 }
 

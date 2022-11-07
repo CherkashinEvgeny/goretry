@@ -146,7 +146,7 @@ type PowDelayStrategy struct {
 }
 
 func (e PowDelayStrategy) Attempt(ctx context.Context, retryNumber int) (attempt bool) {
-	delay := e.Seed * time.Duration(math.Pow(e.Base, float64(retryNumber)))
+	delay := time.Duration(float64(e.Seed) * math.Pow(e.Base, float64(retryNumber)))
 	return Sleep(ctx, delay)
 }
 
