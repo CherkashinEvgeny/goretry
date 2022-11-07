@@ -2,7 +2,7 @@ package retry
 
 import (
 	"context"
-	"gotest.tools/assert"
+	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
 	"time"
@@ -17,7 +17,8 @@ func TestCompositeStrategy(t *testing.T) {
 			return false
 		}),
 	)
-	assert.Assert(t, !strategy.Attempt(context.Background()))
+	attempt := strategy.Attempt(context.Background())
+	assert.False(t, attempt)
 }
 
 func TestDelayedStrategy(t *testing.T) {
@@ -25,11 +26,13 @@ func TestDelayedStrategy(t *testing.T) {
 	strategy := Delays(time.Second, time.Second/2, time.Second/4)
 	for _, delay := range delays {
 		start := time.Now()
-		assert.Assert(t, strategy.Attempt(context.Background()))
+		attempt := strategy.Attempt(context.Background())
 		stop := time.Now()
-		assert.Assert(t, stop.Sub(start) >= delay)
+		assert.True(t, attempt)
+		assert.True(t, stop.Sub(start) >= delay)
 	}
-	assert.Assert(t, !strategy.Attempt(context.Background()))
+	attempt := strategy.Attempt(context.Background())
+	assert.False(t, attempt)
 }
 
 func TestFunctionStrategy(t *testing.T) {
@@ -39,41 +42,51 @@ func TestFunctionStrategy(t *testing.T) {
 		value = attempt
 		return
 	})
-	for i := 0; i < 1000; i++ {
-		assert.Equal(t, value, strategy.Attempt(context.Background()))
+	for retryNumber := 0; retryNumber < 1000; retryNumber++ {
+		attempt := strategy.Attempt(context.Background())
+		assert.Equal(t, value, attempt)
 	}
 }
 
 func TestInfiniteStrategy(t *testing.T) {
 	strategy := Infinite()
-	for i := 0; i < 1000; i++ {
-		assert.Assert(t, strategy.Attempt(context.Background()))
+	for retryNumber := 0; retryNumber < 1000; retryNumber++ {
+		attempt := strategy.Attempt(context.Background())
+		assert.True(t, attempt)
 	}
 }
 
 func TestMaxAttemptsStrategy(t *testing.T) {
 	attempts := 10
 	strategy := MaxAttempts(attempts)
-	counter := 0
-	for strategy.Attempt(context.Background()) {
-		counter++
+	retryCount := 0
+	retryNumber := 0
+	for {
+		retryCount++
+		attempt := strategy.Attempt(context.Background())
+		if !attempt {
+			break
+		}
+		retryNumber++
 	}
-	assert.Equal(t, attempts-1, counter)
+	assert.Equal(t, attempts, retryCount)
 }
 
 func TestFixedDelayStrategy(t *testing.T) {
 	delay := time.Second
 	strategy := FixedDelay(delay)
-	for i := 0; i < 3; i++ {
+	for retryNumber := 0; retryNumber < 5; retryNumber++ {
 		start := time.Now()
-		strategy.Attempt(context.Background())
+		attempt := strategy.Attempt(context.Background())
 		stop := time.Now()
-		assert.Assert(t, stop.Sub(start) >= delay)
+		assert.Equal(t, true, attempt)
+		assert.True(t, stop.Sub(start) >= delay)
 	}
 }
 
 func TestSleep(t *testing.T) {
-	assert.Assert(t, Sleep(context.Background(), 2*time.Second))
+	success := Sleep(context.Background(), 2*time.Second)
+	assert.True(t, success)
 }
 
 func TestCancelSleep(t *testing.T) {
@@ -82,5 +95,6 @@ func TestCancelSleep(t *testing.T) {
 		time.Sleep(time.Second)
 		cancel()
 	}()
-	assert.Assert(t, !Sleep(ctx, 2*time.Second))
+	success := Sleep(ctx, 2*time.Second)
+	assert.False(t, success)
 }

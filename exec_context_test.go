@@ -2,7 +2,7 @@ package retry
 
 import (
 	"context"
-	"gotest.tools/assert"
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 )
@@ -13,7 +13,7 @@ func TestSuccessExecContext(t *testing.T) {
 		counter++
 		return nil
 	})
-	assert.NilError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, 1, counter)
 }
 
@@ -27,7 +27,7 @@ func TestSecondRetrySuccessExecContext(t *testing.T) {
 		return nil
 
 	})
-	assert.NilError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, 2, counter)
 }
 
