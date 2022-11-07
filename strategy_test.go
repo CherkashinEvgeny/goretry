@@ -84,6 +84,19 @@ func TestFixedDelayStrategy(t *testing.T) {
 	}
 }
 
+func TestLinearDelayStrategy(t *testing.T) {
+	delay := time.Second
+	strategy := LinearDelay(delay, time.Second)
+	for retryNumber := 0; retryNumber < 5; retryNumber++ {
+		start := time.Now()
+		attempt := strategy.Attempt(context.Background(), retryNumber)
+		stop := time.Now()
+		assert.True(t, attempt)
+		assert.True(t, stop.Sub(start) >= delay)
+		delay += time.Second
+	}
+}
+
 func TestSleep(t *testing.T) {
 	success := Sleep(context.Background(), 2*time.Second)
 	assert.True(t, success)
