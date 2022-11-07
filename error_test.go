@@ -2,7 +2,7 @@ package retry
 
 import (
 	"github.com/pkg/errors"
-	"gotest.tools/assert"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
