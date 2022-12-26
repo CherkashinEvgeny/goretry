@@ -245,7 +245,12 @@ type RandomDelayStrategy struct {
 }
 
 func (s *RandomDelayStrategy) Attempt(ctx context.Context, _ int) (attempt bool) {
-	delay := s.minDelay + time.Duration(rand.Int63()%int64(s.maxDelay-s.minDelay))
+	var delay time.Duration
+	if s.maxDelay == s.minDelay {
+		delay = s.minDelay
+	} else {
+		delay = s.minDelay + time.Duration(rand.Int63()%int64(s.maxDelay-s.minDelay))
+	}
 	return Sleep(ctx, delay)
 }
 

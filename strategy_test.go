@@ -224,6 +224,34 @@ func BenchmarkFixedDelayStrategyAllocations(b *testing.B) {
 	})
 }
 
+func TestRandomDelayStrategy(t *testing.T) {
+	minDelay := time.Second
+	maxDelay := minDelay + 500*time.Millisecond
+	strategy := RandomDelay(minDelay, maxDelay)
+	for retryNumber := 0; retryNumber < 5; retryNumber++ {
+		start := time.Now()
+		attempt := strategy.Attempt(context.Background(), retryNumber)
+		stop := time.Now()
+		assert.Equal(t, true, attempt)
+		assert.True(t, stop.Sub(start) >= minDelay)
+		assert.True(t, stop.Sub(start) < maxDelay+10*time.Millisecond)
+	}
+}
+
+func BenchmarkRandomDelayStrategyAllocations(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = Exec(func(retryNumber int) (err error) {
+				if retryNumber > 5 {
+					return nil
+				}
+				return testError
+			}, RandomDelay(0, 1))
+		}
+	})
+}
+
 func TestLinearDelayStrategy(t *testing.T) {
 	delay := time.Second
 	strategy := LinearDelay(delay, time.Second)
