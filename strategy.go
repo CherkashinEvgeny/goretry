@@ -31,6 +31,24 @@ func (s CompositeStrategy) Attempt(ctx context.Context) (attempt bool) {
 	return
 }
 
+func Sequence(strategies ...Strategy) *SequentialStrategy {
+	return &SequentialStrategy{
+		strategies: strategies,
+	}
+}
+
+type SequentialStrategy struct {
+	strategies []Strategy
+}
+
+func (s *SequentialStrategy) Attempt(ctx context.Context) (attempt bool) {
+	attempt = false
+	for index := 0; !attempt && index < len(s.strategies); index++ {
+		attempt = s.strategies[index].Attempt(ctx)
+	}
+	return
+}
+
 func Delays(delays ...time.Duration) *DelayedStrategy {
 	return &DelayedStrategy{
 		index:  0,
