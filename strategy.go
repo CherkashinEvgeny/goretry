@@ -129,6 +129,23 @@ func (s RandomDelayStrategy) Attempt(ctx context.Context) (attempt bool) {
 	return Sleep(ctx, delay)
 }
 
+func LinearDelay(seed time.Duration, delta time.Duration) *LinearDelayStrategy {
+	return &LinearDelayStrategy{
+		delay: seed,
+		delta: delta,
+	}
+}
+
+type LinearDelayStrategy struct {
+	delay time.Duration
+	delta time.Duration
+}
+
+func (s *LinearDelayStrategy) Attempt(ctx context.Context) (attempt bool) {
+	s.delay = s.delay + s.delta
+	return Sleep(ctx, s.delay)
+}
+
 func ExpDelay(seed time.Duration) *PowDelayStrategy {
 	return PowDelay(seed, math.E)
 }

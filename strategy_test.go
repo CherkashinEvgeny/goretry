@@ -85,6 +85,19 @@ func TestFixedDelayStrategy(t *testing.T) {
 	}
 }
 
+func TestLinearDelayStrategy(t *testing.T) {
+	delay := time.Second
+	strategy := LinearDelay(delay, time.Second)
+	for retryNumber := 0; retryNumber < 5; retryNumber++ {
+		start := time.Now()
+		attempt := strategy.Attempt(context.Background())
+		stop := time.Now()
+		assert.True(t, attempt)
+		assert.True(t, stop.Sub(start) >= delay)
+		delay += time.Second
+	}
+}
+
 func TestPowDelayStrategy(t *testing.T) {
 	delay := 100 * time.Millisecond
 	strategy := PowDelay(delay, math.Sqrt2)
