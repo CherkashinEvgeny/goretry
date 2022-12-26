@@ -114,18 +114,23 @@ func (s FixedDelayStrategy) Attempt(ctx context.Context) (attempt bool) {
 
 func RandomDelay(min time.Duration, max time.Duration) RandomDelayStrategy {
 	return RandomDelayStrategy{
-		min: min,
-		max: max,
+		minDelay: min,
+		maxDelay: max,
 	}
 }
 
 type RandomDelayStrategy struct {
-	min time.Duration
-	max time.Duration
+	minDelay time.Duration
+	maxDelay time.Duration
 }
 
-func (s RandomDelayStrategy) Attempt(ctx context.Context) (attempt bool) {
-	delay := s.min + time.Duration(rand.Int63()%int64(s.max-s.min))
+func (s RandomDelayStrategy) Attempt(ctx context.Context, _ int) (attempt bool) {
+	var delay time.Duration
+	if s.minDelay == s.maxDelay {
+		delay = s.minDelay
+	} else {
+		delay = s.minDelay + time.Duration(rand.Int63()%int64(s.maxDelay-s.minDelay))
+	}
 	return Sleep(ctx, delay)
 }
 

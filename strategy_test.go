@@ -85,6 +85,20 @@ func TestFixedDelayStrategy(t *testing.T) {
 	}
 }
 
+func TestRandomDelayStrategy(t *testing.T) {
+	minDelay := time.Second
+	maxDelay := minDelay + 500*time.Millisecond
+	strategy := RandomDelay(minDelay, maxDelay)
+	for retryNumber := 0; retryNumber < 5; retryNumber++ {
+		start := time.Now()
+		attempt := strategy.Attempt(context.Background(), retryNumber)
+		stop := time.Now()
+		assert.Equal(t, true, attempt)
+		assert.True(t, stop.Sub(start) >= minDelay)
+		assert.True(t, stop.Sub(start) < maxDelay+10*time.Millisecond)
+	}
+}
+
 func TestLinearDelayStrategy(t *testing.T) {
 	delay := time.Second
 	strategy := LinearDelay(delay, time.Second)
