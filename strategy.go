@@ -67,9 +67,8 @@ func (s *DelayedStrategy) Attempt(ctx context.Context) (attempt bool) {
 		return
 	}
 	delay := s.delays[s.index]
-	s.index += 1
-	Sleep(ctx, delay)
-	return
+	s.index++
+	return Sleep(ctx, delay)
 }
 
 type StrategyFunc func(ctx context.Context) (attempt bool)
