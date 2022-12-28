@@ -1,4 +1,4 @@
-module github.com/CherkashinEvgeny/goretry
+module github.com/CherkashinEvgeny/goretry/v2
 
 go 1.18
 
