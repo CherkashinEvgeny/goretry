@@ -100,9 +100,21 @@ func TestRandomDelayStrategy(t *testing.T) {
 		attempt := strategy.Attempt(context.Background())
 		stop := time.Now()
 		assert.Equal(t, true, attempt)
-		assert.True(t, stop.Sub(start) >= minDelay)
 		assert.GreaterOrEqual(t, stop.Sub(start), minDelay)
 		assert.LessOrEqual(t, stop.Sub(start), maxDelay+50*time.Millisecond)
+	}
+}
+
+func TestLinearDelayStrategy(t *testing.T) {
+	delay := time.Second
+	strategy := LinearDelay(delay, time.Second)
+	for retryNumber := 0; retryNumber < 5; retryNumber++ {
+		start := time.Now()
+		attempt := strategy.Attempt(context.Background())
+		stop := time.Now()
+		assert.True(t, attempt)
+		assert.InDelta(t, delay, stop.Sub(start), float64(50*time.Millisecond))
+		delay += time.Second
 	}
 }
 
