@@ -11,34 +11,82 @@ import (
 
 func TestCompositeStrategy(t *testing.T) {
 	strategy := Compose(
-		Function(func(ctx context.Context) (attempt bool) {
+		Function(func(ctx context.Context, _ int) (attempt bool) {
 			return true
 		}),
-		Function(func(ctx context.Context) (attempt bool) {
-			return false
-		}),
-	)
-	attempt := strategy.Attempt(context.Background(), 0)
-	assert.False(t, attempt)
-}
-
-func TestSequentialStrategy(t *testing.T) {
-	retryNumber := 0
-	strategy := Sequence(
-		Function(func(ctx context.Context) (attempt bool) {
+		Function(func(ctx context.Context, retryNumber int) (attempt bool) {
 			return retryNumber < 5
 		}),
-		Function(func(ctx context.Context) (attempt bool) {
-			return retryNumber < 10
-		}),
 	)
-	for retryNumber < 10 {
-		attempt := strategy.Attempt(context.Background(), retryNumber)
+	var retryNumber int
+	for retryNumber < 5 {
+		attempt := strategy.Attempt(context.Background(), 0)
 		assert.True(t, attempt)
 		retryNumber++
 	}
 	attempt := strategy.Attempt(context.Background(), retryNumber)
 	assert.False(t, attempt)
+}
+
+func BenchmarkCompositeStrategyAllocations(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = Exec(func(retryNumber int) (err error) {
+				if retryNumber > 5 {
+					return nil
+				}
+				return testError
+			}, Compose(
+				Function(func(ctx context.Context, _ int) (attempt bool) {
+					return true
+				}),
+				Function(func(ctx context.Context, _ int) (attempt bool) {
+					return false
+				}),
+			))
+		}
+	})
+}
+
+func TestSequentialStrategy(t *testing.T) {
+	strategy := Sequence(
+		Function(func(ctx context.Context, retryNumber int) (attempt bool) {
+			return retryNumber < 5
+		}),
+		Function(func(ctx context.Context, retryNumber int) (attempt bool) {
+			return retryNumber < 10
+		}),
+	)
+	var retryNumber int
+	for retryNumber < 10 {
+		attempt := strategy.Attempt(context.Background(), 0)
+		assert.True(t, attempt)
+		retryNumber++
+	}
+	attempt := strategy.Attempt(context.Background(), retryNumber)
+	assert.False(t, attempt)
+}
+
+func BenchmarkSequentialStrategyAllocations(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = Exec(func(retryNumber int) (err error) {
+				if retryNumber > 5 {
+					return nil
+				}
+				return testError
+			}, Sequence(
+				Function(func(ctx context.Context, _ int) (attempt bool) {
+					return true
+				}),
+				Function(func(ctx context.Context, _ int) (attempt bool) {
+					return false
+				}),
+			))
+		}
+	})
 }
 
 func TestDelayedStrategy(t *testing.T) {
@@ -55,9 +103,23 @@ func TestDelayedStrategy(t *testing.T) {
 	assert.False(t, attempt)
 }
 
+func BenchmarkDelayedStrategyAllocations(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = Exec(func(retryNumber int) (err error) {
+				if retryNumber > 5 {
+					return nil
+				}
+				return testError
+			}, Delays(0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+		}
+	})
+}
+
 func TestFunctionStrategy(t *testing.T) {
 	value := false
-	strategy := Function(func(ctx context.Context) (attempt bool) {
+	strategy := Function(func(ctx context.Context, _ int) (attempt bool) {
 		attempt = rand.Int()>>1 == 0
 		value = attempt
 		return
@@ -68,12 +130,42 @@ func TestFunctionStrategy(t *testing.T) {
 	}
 }
 
+func BenchmarkFunctionStrategyAllocations(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = Exec(func(retryNumber int) (err error) {
+				if retryNumber > 5 {
+					return nil
+				}
+				return testError
+			}, Function(func(ctx context.Context, retryNumber int) (attempt bool) {
+				return true
+			}))
+		}
+	})
+}
+
 func TestInfiniteStrategy(t *testing.T) {
 	strategy := Infinite()
 	for retryNumber := 0; retryNumber < 1000; retryNumber++ {
 		attempt := strategy.Attempt(context.Background(), retryNumber)
 		assert.True(t, attempt)
 	}
+}
+
+func BenchmarkInfiniteStrategyAllocations(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = Exec(func(retryNumber int) (err error) {
+				if retryNumber > 5 {
+					return nil
+				}
+				return testError
+			}, Infinite())
+		}
+	})
 }
 
 func TestMaxAttemptsStrategy(t *testing.T) {
@@ -92,6 +184,20 @@ func TestMaxAttemptsStrategy(t *testing.T) {
 	assert.Equal(t, attempts, retryCount)
 }
 
+func BenchmarkMaxAttemptsStrategyAllocations(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = Exec(func(retryNumber int) (err error) {
+				if retryNumber > 5 {
+					return nil
+				}
+				return testError
+			}, MaxAttempts(10))
+		}
+	})
+}
+
 func TestFixedDelayStrategy(t *testing.T) {
 	delay := time.Second
 	strategy := FixedDelay(delay)
@@ -102,6 +208,20 @@ func TestFixedDelayStrategy(t *testing.T) {
 		assert.Equal(t, true, attempt)
 		assert.True(t, stop.Sub(start) >= delay)
 	}
+}
+
+func BenchmarkFixedDelayStrategyAllocations(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = Exec(func(retryNumber int) (err error) {
+				if retryNumber > 5 {
+					return nil
+				}
+				return testError
+			}, FixedDelay(0))
+		}
+	})
 }
 
 func TestRandomDelayStrategy(t *testing.T) {
@@ -118,6 +238,20 @@ func TestRandomDelayStrategy(t *testing.T) {
 	}
 }
 
+func BenchmarkRandomDelayStrategyAllocations(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = Exec(func(retryNumber int) (err error) {
+				if retryNumber > 5 {
+					return nil
+				}
+				return testError
+			}, RandomDelay(0, 1))
+		}
+	})
+}
+
 func TestLinearDelayStrategy(t *testing.T) {
 	delay := time.Second
 	strategy := LinearDelay(delay, time.Second)
@@ -131,6 +265,20 @@ func TestLinearDelayStrategy(t *testing.T) {
 	}
 }
 
+func BenchmarkLinearDelayStrategyAllocations(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = Exec(func(retryNumber int) (err error) {
+				if retryNumber > 5 {
+					return nil
+				}
+				return testError
+			}, LinearDelay(0, 0))
+		}
+	})
+}
+
 func TestPowDelayStrategy(t *testing.T) {
 	delay := 100 * time.Millisecond
 	strategy := PowDelay(delay, math.Sqrt2)
@@ -142,6 +290,20 @@ func TestPowDelayStrategy(t *testing.T) {
 		assert.True(t, stop.Sub(start) >= delay)
 		delay = time.Duration(float64(delay) * math.Sqrt2)
 	}
+}
+
+func BenchmarkPowDelayStrategyAllocations(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = Exec(func(retryNumber int) (err error) {
+				if retryNumber > 5 {
+					return nil
+				}
+				return testError
+			}, PowDelay(0, 0))
+		}
+	})
 }
 
 func TestSleep(t *testing.T) {

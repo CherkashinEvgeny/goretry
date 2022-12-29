@@ -132,6 +132,7 @@ It is highly recommended to store strategies, that limit attempts, before strate
 ### Strategy reusing
 
 Some strategies have internal state, so it is highly recommended not to share strategies between several `Exec` calls.
+Besides, zero allocation feature limits strategy reusing too.
 
 Incorrect:
 

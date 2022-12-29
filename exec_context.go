@@ -10,6 +10,7 @@ func ExecContext(
 	strategies ...Strategy,
 ) (err error) {
 	strategy := Compose(strategies...)
+	defer strategy.Reset()
 	retryNumber := 0
 	for {
 		err = retryableFunc(ctx, retryNumber)
