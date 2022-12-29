@@ -28,6 +28,25 @@ func TestCompositeStrategy(t *testing.T) {
 	assert.False(t, attempt)
 }
 
+func TestSequentialStrategy(t *testing.T) {
+	retryNumber := 0
+	strategy := Sequence(
+		Function(func(ctx context.Context) (attempt bool) {
+			return retryNumber < 5
+		}),
+		Function(func(ctx context.Context) (attempt bool) {
+			return retryNumber < 10
+		}),
+	)
+	for retryNumber < 10 {
+		attempt := strategy.Attempt(context.Background())
+		assert.True(t, attempt)
+		retryNumber++
+	}
+	attempt := strategy.Attempt(context.Background())
+	assert.False(t, attempt)
+}
+
 func TestDelayedStrategy(t *testing.T) {
 	delays := []time.Duration{time.Second, time.Second / 2, time.Second / 4}
 	strategy := Delays(time.Second, time.Second/2, time.Second/4)
