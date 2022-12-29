@@ -13,23 +13,30 @@ func ExecContext(
 	retryNumber := 0
 	for {
 		err = retryableFunc(ctx, retryNumber)
-		select {
-		case <-ctx.Done():
-			err = ctx.Err()
-			return
-		default:
-			break
-		}
 		if err == nil {
 			return
 		}
 		if isUnrecoverable(err) {
-			err, _ = getUnrecoverableErrorCause(err)
+			err = getUnrecoverableErrorCause(err)
+			return
+		}
+		if isContextCancelled(ctx) {
 			return
 		}
 		if !strategy.Attempt(ctx) {
 			return
 		}
-		retryNumber += 1
+		retryNumber++
 	}
+}
+
+func isContextCancelled(ctx context.Context) (cancelled bool) {
+	select {
+	case <-ctx.Done():
+		cancelled = true
+		break
+	default:
+		break
+	}
+	return
 }

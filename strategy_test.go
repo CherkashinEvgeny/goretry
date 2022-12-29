@@ -10,7 +10,7 @@ import (
 )
 
 func TestCompositeStrategy(t *testing.T) {
-	var retryNumber int
+	retryNumber := 0
 	strategy := Compose(
 		Function(func(ctx context.Context) (attempt bool) {
 			return true

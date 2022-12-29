@@ -13,9 +13,10 @@ func isUnrecoverable(err error) bool {
 	return ok
 }
 
-func getUnrecoverableErrorCause(unrecoverableErr error) (cause error, ok bool) {
-	var unrecErr unrecoverableError
-	unrecErr, ok = unrecoverableErr.(unrecoverableError)
-	cause = unrecErr.error
+func getUnrecoverableErrorCause(unrecoverableErr error) (cause error) {
+	unrecErr, ok := unrecoverableErr.(unrecoverableError)
+	if ok {
+		cause = unrecErr.error
+	}
 	return
 }
