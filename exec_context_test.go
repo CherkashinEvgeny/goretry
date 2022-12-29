@@ -51,8 +51,8 @@ func TestCancelExecContext(t *testing.T) {
 	err := ExecContext(ctx, func(ctx context.Context, retryNumber int) (err error) {
 		time.Sleep(2 * time.Second)
 		counter++
-		return nil
+		return testError
 	})
-	assert.Equal(t, ctx.Err(), err)
+	assert.Equal(t, testError, err)
 	assert.Equal(t, 1, counter)
 }
