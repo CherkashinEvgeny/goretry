@@ -8,11 +8,11 @@ import (
 )
 
 type Strategy interface {
-	Attempt(ctx context.Context, retryNumber int) (attempt bool)
+	Attempt(ctx context.Context, retryNumber int, err error) (attempt bool)
 }
 
 func DefaultStrategy() Strategy {
-	return Compose(MaxAttempts(10), PowDelay(100*time.Millisecond, math.Sqrt2))
+	return Compose(MaxAttempts(5), PowDelay(100*time.Millisecond, math.Sqrt2))
 }
 
 func Compose(strategies ...Strategy) (strategy CompositeStrategy) {
@@ -25,10 +25,10 @@ type CompositeStrategy struct {
 	strategies []Strategy
 }
 
-func (s CompositeStrategy) Attempt(ctx context.Context, retryNumber int) (attempt bool) {
+func (s CompositeStrategy) Attempt(ctx context.Context, retryNumber int, err error) (attempt bool) {
 	attempt = true
 	for index := 0; attempt && index < len(s.strategies); index++ {
-		attempt = s.strategies[index].Attempt(ctx, retryNumber)
+		attempt = s.strategies[index].Attempt(ctx, retryNumber, err)
 	}
 	return
 }
@@ -43,10 +43,10 @@ type SequentialStrategy struct {
 	strategies []Strategy
 }
 
-func (s SequentialStrategy) Attempt(ctx context.Context, retryNumber int) (attempt bool) {
+func (s SequentialStrategy) Attempt(ctx context.Context, retryNumber int, err error) (attempt bool) {
 	attempt = false
 	for index := 0; !attempt && index < len(s.strategies); index++ {
-		attempt = s.strategies[index].Attempt(ctx, retryNumber)
+		attempt = s.strategies[index].Attempt(ctx, retryNumber, err)
 	}
 	return
 }
@@ -62,7 +62,7 @@ type DelayedStrategy struct {
 	delays []time.Duration
 }
 
-func (s *DelayedStrategy) Attempt(ctx context.Context, _ int) (attempt bool) {
+func (s *DelayedStrategy) Attempt(ctx context.Context, _ int, _ error) (attempt bool) {
 	attempt = s.index < len(s.delays)
 	if !attempt {
 		return
@@ -73,7 +73,7 @@ func (s *DelayedStrategy) Attempt(ctx context.Context, _ int) (attempt bool) {
 	return
 }
 
-type StrategyFunc func(ctx context.Context, retryNumber int) (attempt bool)
+type StrategyFunc func(ctx context.Context, retryNumber int, _ error) (attempt bool)
 
 func Function(retryFunc StrategyFunc) (strategy FuncStrategy) {
 	return FuncStrategy{retryFunc}
@@ -85,8 +85,8 @@ type FuncStrategy struct {
 	retryFunc StrategyFunc
 }
 
-func (s FuncStrategy) Attempt(ctx context.Context, retryNumber int) (attempt bool) {
-	attempt = s.retryFunc(ctx, retryNumber)
+func (s FuncStrategy) Attempt(ctx context.Context, retryNumber int, err error) (attempt bool) {
+	attempt = s.retryFunc(ctx, retryNumber, err)
 	return
 }
 
@@ -101,7 +101,7 @@ var _ Strategy = (*InfiniteAttemptsStrategy)(nil)
 type InfiniteAttemptsStrategy struct {
 }
 
-func (s *InfiniteAttemptsStrategy) Attempt(_ context.Context, _ int) (attempt bool) {
+func (s *InfiniteAttemptsStrategy) Attempt(_ context.Context, _ int, _ error) (attempt bool) {
 	attempt = true
 	return
 }
@@ -117,7 +117,7 @@ type MaxRetriesStrategy struct {
 	remainingAttempts int
 }
 
-func (s *MaxRetriesStrategy) Attempt(_ context.Context, _ int) (attempt bool) {
+func (s *MaxRetriesStrategy) Attempt(_ context.Context, _ int, _ error) (attempt bool) {
 	attempt = s.remainingAttempts > 0
 	if attempt {
 		s.remainingAttempts--
@@ -135,7 +135,7 @@ type FixedDelayStrategy struct {
 	delay time.Duration
 }
 
-func (s FixedDelayStrategy) Attempt(ctx context.Context, _ int) (attempt bool) {
+func (s FixedDelayStrategy) Attempt(ctx context.Context, _ int, _ error) (attempt bool) {
 	attempt = Sleep(ctx, s.delay)
 	return
 }
@@ -151,7 +151,7 @@ type RandomDelayStrategy struct {
 	maxDelay time.Duration
 }
 
-func (s RandomDelayStrategy) Attempt(ctx context.Context, _ int) (attempt bool) {
+func (s RandomDelayStrategy) Attempt(ctx context.Context, _ int, _ error) (attempt bool) {
 	var delay time.Duration
 	if s.minDelay == s.maxDelay {
 		delay = s.minDelay
@@ -173,7 +173,7 @@ type LinearDelayStrategy struct {
 	delta time.Duration
 }
 
-func (s *LinearDelayStrategy) Attempt(ctx context.Context, _ int) (attempt bool) {
+func (s *LinearDelayStrategy) Attempt(ctx context.Context, _ int, _ error) (attempt bool) {
 	attempt = Sleep(ctx, s.delay)
 	s.delay = s.delay + s.delta
 	return
@@ -194,7 +194,7 @@ type PowDelayStrategy struct {
 	base  float64
 }
 
-func (s *PowDelayStrategy) Attempt(ctx context.Context, _ int) (attempt bool) {
+func (s *PowDelayStrategy) Attempt(ctx context.Context, _ int, _ error) (attempt bool) {
 	attempt = Sleep(ctx, s.delay)
 	s.delay = time.Duration(float64(s.delay) * s.base)
 	return

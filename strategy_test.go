@@ -2,48 +2,49 @@ package retry
 
 import (
 	"context"
-	"github.com/stretchr/testify/assert"
 	"math"
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestCompositeStrategy(t *testing.T) {
+func TestAndStrategy(t *testing.T) {
 	strategy := Compose(
-		Function(func(ctx context.Context, retryNumber int) (attempt bool) {
+		Function(func(ctx context.Context, retryNumber int, _ error) (attempt bool) {
 			return true
 		}),
-		Function(func(ctx context.Context, retryNumber int) (attempt bool) {
+		Function(func(ctx context.Context, retryNumber int, _ error) (attempt bool) {
 			return retryNumber < 5
 		}),
 	)
 	retryNumber := 0
 	for retryNumber < 5 {
-		attempt := strategy.Attempt(context.Background(), retryNumber)
+		attempt := strategy.Attempt(context.Background(), retryNumber, testError)
 		assert.True(t, attempt)
 		retryNumber++
 	}
-	attempt := strategy.Attempt(context.Background(), retryNumber)
+	attempt := strategy.Attempt(context.Background(), retryNumber, testError)
 	assert.False(t, attempt)
 }
 
-func TestSequentialStrategy(t *testing.T) {
+func TestOrStrategy(t *testing.T) {
 	strategy := Sequence(
-		Function(func(ctx context.Context, retryNumber int) (attempt bool) {
+		Function(func(ctx context.Context, retryNumber int, _ error) (attempt bool) {
 			return retryNumber < 5
 		}),
-		Function(func(ctx context.Context, retryNumber int) (attempt bool) {
+		Function(func(ctx context.Context, retryNumber int, _ error) (attempt bool) {
 			return retryNumber < 10
 		}),
 	)
 	retryNumber := 0
 	for retryNumber < 10 {
-		attempt := strategy.Attempt(context.Background(), retryNumber)
+		attempt := strategy.Attempt(context.Background(), retryNumber, testError)
 		assert.True(t, attempt)
 		retryNumber++
 	}
-	attempt := strategy.Attempt(context.Background(), retryNumber)
+	attempt := strategy.Attempt(context.Background(), retryNumber, testError)
 	assert.False(t, attempt)
 }
 
@@ -53,25 +54,25 @@ func TestDelayedStrategy(t *testing.T) {
 	retryNumber := 0
 	for retryNumber < len(delays) {
 		start := time.Now()
-		attempt := strategy.Attempt(context.Background(), retryNumber)
+		attempt := strategy.Attempt(context.Background(), retryNumber, testError)
 		stop := time.Now()
 		assert.True(t, attempt)
 		assert.InDelta(t, delays[retryNumber], stop.Sub(start), float64(50*time.Millisecond))
 		retryNumber++
 	}
-	attempt := strategy.Attempt(context.Background(), retryNumber)
+	attempt := strategy.Attempt(context.Background(), retryNumber, testError)
 	assert.False(t, attempt)
 }
 
 func TestFunctionStrategy(t *testing.T) {
 	value := false
-	strategy := Function(func(ctx context.Context, retryNumber int) (attempt bool) {
+	strategy := Function(func(ctx context.Context, retryNumber int, _ error) (attempt bool) {
 		attempt = rand.Int()>>1 == 0
 		value = attempt
 		return
 	})
 	for retryNumber := 0; retryNumber < 1000; retryNumber++ {
-		attempt := strategy.Attempt(context.Background(), retryNumber)
+		attempt := strategy.Attempt(context.Background(), retryNumber, testError)
 		assert.Equal(t, value, attempt)
 	}
 }
@@ -79,7 +80,7 @@ func TestFunctionStrategy(t *testing.T) {
 func TestInfiniteStrategy(t *testing.T) {
 	strategy := Infinite()
 	for retryNumber := 0; retryNumber < 1000; retryNumber++ {
-		attempt := strategy.Attempt(context.Background(), retryNumber)
+		attempt := strategy.Attempt(context.Background(), retryNumber, testError)
 		assert.True(t, attempt)
 	}
 }
@@ -89,11 +90,11 @@ func TestMaxAttemptsStrategy(t *testing.T) {
 	strategy := MaxAttempts(attempts)
 	retryNumber := 0
 	for retryNumber < attempts-1 {
-		attempt := strategy.Attempt(context.Background(), retryNumber)
+		attempt := strategy.Attempt(context.Background(), retryNumber, testError)
 		assert.True(t, attempt)
 		retryNumber++
 	}
-	attempt := strategy.Attempt(context.Background(), retryNumber)
+	attempt := strategy.Attempt(context.Background(), retryNumber, testError)
 	assert.False(t, attempt)
 }
 
@@ -102,7 +103,7 @@ func TestFixedDelayStrategy(t *testing.T) {
 	strategy := FixedDelay(delay)
 	for retryNumber := 0; retryNumber < 5; retryNumber++ {
 		start := time.Now()
-		attempt := strategy.Attempt(context.Background(), retryNumber)
+		attempt := strategy.Attempt(context.Background(), retryNumber, testError)
 		stop := time.Now()
 		assert.Equal(t, true, attempt)
 		assert.InDelta(t, delay, stop.Sub(start), float64(50*time.Millisecond))
@@ -115,7 +116,7 @@ func TestRandomDelayStrategy(t *testing.T) {
 	strategy := RandomDelay(minDelay, maxDelay)
 	for retryNumber := 0; retryNumber < 5; retryNumber++ {
 		start := time.Now()
-		attempt := strategy.Attempt(context.Background(), retryNumber)
+		attempt := strategy.Attempt(context.Background(), retryNumber, testError)
 		stop := time.Now()
 		assert.Equal(t, true, attempt)
 		assert.GreaterOrEqual(t, stop.Sub(start), minDelay)
@@ -128,7 +129,7 @@ func TestLinearDelayStrategy(t *testing.T) {
 	strategy := LinearDelay(delay, time.Second)
 	for retryNumber := 0; retryNumber < 5; retryNumber++ {
 		start := time.Now()
-		attempt := strategy.Attempt(context.Background(), retryNumber)
+		attempt := strategy.Attempt(context.Background(), retryNumber, testError)
 		stop := time.Now()
 		assert.True(t, attempt)
 		assert.InDelta(t, delay, stop.Sub(start), float64(50*time.Millisecond))
@@ -141,7 +142,7 @@ func TestPowDelayStrategy(t *testing.T) {
 	strategy := PowDelay(delay, math.Sqrt2)
 	for retryNumber := 0; retryNumber < 10; retryNumber++ {
 		start := time.Now()
-		attempt := strategy.Attempt(context.Background(), retryNumber)
+		attempt := strategy.Attempt(context.Background(), retryNumber, testError)
 		stop := time.Now()
 		assert.True(t, attempt)
 		assert.InDelta(t, delay, stop.Sub(start), float64(50*time.Millisecond))

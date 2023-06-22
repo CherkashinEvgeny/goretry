@@ -23,7 +23,7 @@ func ExecContext(
 		if isContextCancelled(ctx) {
 			return
 		}
-		if !strategy.Attempt(ctx, retryNumber) {
+		if !strategy.Attempt(ctx, retryNumber, err) {
 			return
 		}
 		retryNumber++
