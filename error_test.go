@@ -1,9 +1,10 @@
 package retry
 
 import (
-	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
+	"errors"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var testError = errors.New("test")
