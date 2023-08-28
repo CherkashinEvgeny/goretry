@@ -9,7 +9,7 @@ func ExecContext(
 	retryableFunc RetryableContextFunc,
 	strategies ...Strategy,
 ) (err error) {
-	strategy := Compose(strategies...)
+	strategy := And(strategies...)
 	retryNumber := 0
 	for {
 		err = retryableFunc(ctx, retryNumber)

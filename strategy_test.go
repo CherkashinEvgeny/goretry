@@ -11,7 +11,7 @@ import (
 )
 
 func TestAndStrategy(t *testing.T) {
-	strategy := Compose(
+	strategy := And(
 		Function(func(ctx context.Context, retryNumber int, _ error) (attempt bool) {
 			return true
 		}),
@@ -30,7 +30,7 @@ func TestAndStrategy(t *testing.T) {
 }
 
 func TestOrStrategy(t *testing.T) {
-	strategy := Sequence(
+	strategy := Or(
 		Function(func(ctx context.Context, retryNumber int, _ error) (attempt bool) {
 			return retryNumber < 5
 		}),

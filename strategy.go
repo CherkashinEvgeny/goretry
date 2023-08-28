@@ -11,21 +11,21 @@ type Strategy interface {
 	Attempt(ctx context.Context, retryNumber int, err error) (attempt bool)
 }
 
-func DefaultStrategy() Strategy {
-	return Compose(MaxAttempts(5), PowDelay(100*time.Millisecond, math.Sqrt2))
+func Default() Strategy {
+	return And(MaxAttempts(5), PowDelay(100*time.Millisecond, math.Sqrt2))
 }
 
-func Compose(strategies ...Strategy) (strategy CompositeStrategy) {
-	return CompositeStrategy{strategies}
+func And(strategies ...Strategy) (strategy AndStrategy) {
+	return AndStrategy{strategies}
 }
 
-var _ Strategy = (*CompositeStrategy)(nil)
+var _ Strategy = (*AndStrategy)(nil)
 
-type CompositeStrategy struct {
+type AndStrategy struct {
 	strategies []Strategy
 }
 
-func (s CompositeStrategy) Attempt(ctx context.Context, retryNumber int, err error) (attempt bool) {
+func (s AndStrategy) Attempt(ctx context.Context, retryNumber int, err error) (attempt bool) {
 	attempt = true
 	for index := 0; attempt && index < len(s.strategies); index++ {
 		attempt = s.strategies[index].Attempt(ctx, retryNumber, err)
@@ -33,17 +33,17 @@ func (s CompositeStrategy) Attempt(ctx context.Context, retryNumber int, err err
 	return
 }
 
-func Sequence(strategies ...Strategy) (strategy SequentialStrategy) {
-	return SequentialStrategy{strategies}
+func Or(strategies ...Strategy) (strategy OrStrategy) {
+	return OrStrategy{strategies}
 }
 
-var _ Strategy = (*SequentialStrategy)(nil)
+var _ Strategy = (*OrStrategy)(nil)
 
-type SequentialStrategy struct {
+type OrStrategy struct {
 	strategies []Strategy
 }
 
-func (s SequentialStrategy) Attempt(ctx context.Context, retryNumber int, err error) (attempt bool) {
+func (s OrStrategy) Attempt(ctx context.Context, retryNumber int, err error) (attempt bool) {
 	attempt = false
 	for index := 0; !attempt && index < len(s.strategies); index++ {
 		attempt = s.strategies[index].Attempt(ctx, retryNumber, err)
