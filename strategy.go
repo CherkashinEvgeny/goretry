@@ -2,8 +2,10 @@ package retry
 
 import (
 	"context"
+	"errors"
 	"math"
 	"math/rand"
+	"reflect"
 	"time"
 )
 
@@ -197,6 +199,44 @@ type PowDelayStrategy struct {
 func (s *PowDelayStrategy) Attempt(ctx context.Context, _ int, _ error) (attempt bool) {
 	attempt = Sleep(ctx, s.delay)
 	s.delay = time.Duration(float64(s.delay) * s.base)
+	return
+}
+
+func Is(err error) (strategy IsStrategy) {
+	return IsStrategy{err}
+}
+
+var _ Strategy = (*IsStrategy)(nil)
+
+type IsStrategy struct {
+	err error
+}
+
+func (s *IsStrategy) Attempt(_ context.Context, _ int, err error) (attempt bool) {
+	attempt = errors.Is(err, s.err)
+	return
+}
+
+func Type(err error) (strategy TypeStrategy) {
+	val := reflect.ValueOf(err)
+	targetType := val.Type()
+	return TypeStrategy{targetType}
+}
+
+var _ Strategy = (*TypeStrategy)(nil)
+
+type TypeStrategy struct {
+	targetType reflect.Type
+}
+
+func (s *TypeStrategy) Attempt(_ context.Context, _ int, err error) (attempt bool) {
+	for err != nil {
+		if reflect.TypeOf(err).AssignableTo(s.targetType) {
+			attempt = true
+			break
+		}
+		err = errors.Unwrap(err)
+	}
 	return
 }
 

@@ -2,6 +2,8 @@ package retry
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"math"
 	"math/rand"
 	"testing"
@@ -148,6 +150,38 @@ func TestPowDelayStrategy(t *testing.T) {
 		assert.InDelta(t, delay, stop.Sub(start), float64(50*time.Millisecond))
 		delay = time.Duration(float64(delay) * math.Sqrt2)
 	}
+}
+
+func TestIsStrategy(t *testing.T) {
+	strategy := Is(testError)
+	assert.True(t, strategy.Attempt(context.Background(), 0, testError))
+	assert.False(t, strategy.Attempt(context.Background(), 0, errors.New("hehe")))
+}
+
+func TestTypeStrategy(t *testing.T) {
+	strategy := Type(testError)
+	assert.True(t, strategy.Attempt(context.Background(), 0, testError))
+	assert.True(t, strategy.Attempt(context.Background(), 0, errors.New("hehe")))
+	assert.True(t, strategy.Attempt(context.Background(), 0, testErrorWrapper{errors.New("hehe")}))
+	assert.False(t, strategy.Attempt(context.Background(), 0, testCustomError{}))
+}
+
+type testCustomError struct{}
+
+func (w testCustomError) Error() (msg string) {
+	return "test"
+}
+
+type testErrorWrapper struct {
+	err error
+}
+
+func (w testErrorWrapper) Error() (msg string) {
+	return fmt.Sprintf("wrapped: %s", w.err.Error())
+}
+
+func (w testErrorWrapper) Unwrap() (err error) {
+	return w.err
 }
 
 func TestSleep(t *testing.T) {
