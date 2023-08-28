@@ -50,6 +50,23 @@ func TestOrStrategy(t *testing.T) {
 	assert.False(t, attempt)
 }
 
+func TestNotStrategy(t *testing.T) {
+	strategy := Not(Function(func(ctx context.Context, retryNumber int, _ error) (attempt bool) {
+		return retryNumber < 5
+	}))
+	retryNumber := 0
+	for retryNumber < 5 {
+		attempt := strategy.Attempt(context.Background(), retryNumber, testError)
+		assert.False(t, attempt)
+		retryNumber++
+	}
+	for retryNumber < 10 {
+		attempt := strategy.Attempt(context.Background(), retryNumber, testError)
+		assert.True(t, attempt)
+		retryNumber++
+	}
+}
+
 func TestDelayedStrategy(t *testing.T) {
 	delays := []time.Duration{time.Second, time.Second / 2, time.Second / 4}
 	strategy := Delays(time.Second, time.Second/2, time.Second/4)

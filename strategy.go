@@ -53,6 +53,21 @@ func (s OrStrategy) Attempt(ctx context.Context, retryNumber int, err error) (at
 	return
 }
 
+func Not(originStrategy Strategy) (strategy NotStrategy) {
+	return NotStrategy{originStrategy}
+}
+
+var _ Strategy = (*NotStrategy)(nil)
+
+type NotStrategy struct {
+	strategy Strategy
+}
+
+func (s NotStrategy) Attempt(ctx context.Context, retryNumber int, err error) (attempt bool) {
+	attempt = !s.strategy.Attempt(ctx, retryNumber, err)
+	return
+}
+
 func Delays(delays ...time.Duration) (strategy *DelayedStrategy) {
 	return &DelayedStrategy{0, delays}
 }
