@@ -11,7 +11,6 @@ Package has some benefits unlike known implementations:
 - rich retry strategy set
 - easy customization
 - context package support
-- zero allocation
 
 ## Usage
 
