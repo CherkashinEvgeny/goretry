@@ -14,9 +14,8 @@ func isUnrecoverable(err error) bool {
 }
 
 func getUnrecoverableErrorCause(unrecoverableErr error) (cause error) {
-	unrecErr, ok := unrecoverableErr.(unrecoverableError)
-	if ok {
-		cause = unrecErr.error
+	if unrecErr, ok := unrecoverableErr.(unrecoverableError); ok {
+		return unrecErr.error
 	}
-	return
+	return nil
 }

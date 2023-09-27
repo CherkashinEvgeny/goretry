@@ -10,8 +10,7 @@ func Exec(
 	retryableFunc RetryableFunc,
 	strategies ...Strategy,
 ) (err error) {
-	err = ExecContext(context.Background(), func(ctx context.Context, retryNumber int) (err error) {
+	return ExecContext(context.Background(), func(ctx context.Context, retryNumber int) (err error) {
 		return retryableFunc(retryNumber)
 	}, strategies...)
-	return
 }

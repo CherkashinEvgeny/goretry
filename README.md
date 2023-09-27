@@ -19,7 +19,7 @@ Retry function until success:
 ```
 _ = retry.Exec(func(retryNumber int) (err error) {
     // your logic here
-    return
+    return err
 })
 ```
 
@@ -28,7 +28,7 @@ Limit attempts:
 ```
 err := retry.Exec(func(retryNumber int) (err error) {
     // your logic here
-    return
+    return err
 }, retry.MaxAttempts(10))
 ```
 
@@ -37,7 +37,7 @@ Delay between retries:
 ```
 err := retry.Exec(func(retryNumber int) (err error) {
     // your logic here
-    return
+    return err
 }, retry.FixedDelay(time.Second))
 ```
 
@@ -46,7 +46,7 @@ Combine few retry strategies:
 ```
 err := retry.Exec(func(retryNumber int) (err error) {
     // your logic here
-    return
+    return err
 }, retry.MaxAttempts(10), retry.FixedDelay(time.Second))
 ```
 
@@ -56,10 +56,9 @@ Breaking retry loop directly from function:
 err := retry.Exec(func(retryNumber int) (err error) {
     // your logic here
     if !canRetry {
-        err = retry.Unrecoverable(err)
-        return
+        return retry.Unrecoverable(err)
     }
-    return
+    return err
 })
 ```
 
@@ -68,7 +67,7 @@ Using context:
 ```
 err := retry.ExecContext(ctx, func(ctx context.Context, retryNumber int) (err error) {
     // your logic here
-    return
+    return err
 })
 ```
 
@@ -82,7 +81,7 @@ go func() {
 }()
 err := retry.ExecContext(ctx, func(ctx context.Context, retryNumber int) (err error) {
     // your logic here
-    return
+    return err
 })
 ```
 
@@ -94,7 +93,8 @@ Be careful:
 
 ```
 err := retry.Exec(func(retryNumber int) (err error) {
-    return errors.New("test")
+    // your logic here
+    return err
 }, retry.MaxAttempts(2), retry.FixedDelay(time.Second))
 ```
 
@@ -102,7 +102,8 @@ not similar to
 
 ```
 err := retry.Exec(func(retryNumber int) (err error) {
-    return errors.New("test")
+    // your logic here
+    return err
 }, retry.FixedDelay(time.Second), retry.MaxAttempts(2))
 ```
 
@@ -138,11 +139,11 @@ Incorrect:
 strategy := retry.MaxAttempts(2)
 err := retry.Exec(func(retryNumber int) (err error) {
     // your logic here
-    return
+    return err
 }, strategy)
 err := retry.Exec(func(retryNumber int) (err error) {
     // your logic here
-    return
+    return err
 }, strategy)
 ```
 
@@ -150,10 +151,12 @@ Correct:
 
 ```
 err := retry.Exec(func(retryNumber int) (err error) {
-    return
+    // your logic here
+    return err
 }, retry.MaxAttempts(2))
 err := retry.Exec(func(retryNumber int) (err error) {
-    return
+    // your logic here
+    return err
 }, retry.MaxAttempts(2))
 ```
 

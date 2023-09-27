@@ -28,11 +28,12 @@ type AndStrategy struct {
 }
 
 func (s AndStrategy) Attempt(ctx context.Context, retryNumber int, err error) (attempt bool) {
-	attempt = true
-	for index := 0; attempt && index < len(s.strategies); index++ {
-		attempt = s.strategies[index].Attempt(ctx, retryNumber, err)
+	for _, strategy := range s.strategies {
+		if !strategy.Attempt(ctx, retryNumber, err) {
+			return false
+		}
 	}
-	return
+	return true
 }
 
 func Or(strategies ...Strategy) (strategy OrStrategy) {
@@ -47,10 +48,12 @@ type OrStrategy struct {
 
 func (s OrStrategy) Attempt(ctx context.Context, retryNumber int, err error) (attempt bool) {
 	attempt = false
-	for index := 0; !attempt && index < len(s.strategies); index++ {
-		attempt = s.strategies[index].Attempt(ctx, retryNumber, err)
+	for _, strategy := range s.strategies {
+		if strategy.Attempt(ctx, retryNumber, err) {
+			return true
+		}
 	}
-	return
+	return false
 }
 
 func Not(originStrategy Strategy) (strategy NotStrategy) {
@@ -64,8 +67,7 @@ type NotStrategy struct {
 }
 
 func (s NotStrategy) Attempt(ctx context.Context, retryNumber int, err error) (attempt bool) {
-	attempt = !s.strategy.Attempt(ctx, retryNumber, err)
-	return
+	return !s.strategy.Attempt(ctx, retryNumber, err)
 }
 
 func Delays(delays ...time.Duration) (strategy *DelayedStrategy) {
@@ -80,14 +82,12 @@ type DelayedStrategy struct {
 }
 
 func (s *DelayedStrategy) Attempt(ctx context.Context, _ int, _ error) (attempt bool) {
-	attempt = s.index < len(s.delays)
-	if !attempt {
-		return
+	if s.index >= len(s.delays) {
+		return false
 	}
 	delay := s.delays[s.index]
 	s.index++
-	attempt = Sleep(ctx, delay)
-	return
+	return Sleep(ctx, delay)
 }
 
 type StrategyFunc func(ctx context.Context, retryNumber int, _ error) (attempt bool)
@@ -103,8 +103,7 @@ type FuncStrategy struct {
 }
 
 func (s FuncStrategy) Attempt(ctx context.Context, retryNumber int, err error) (attempt bool) {
-	attempt = s.retryFunc(ctx, retryNumber, err)
-	return
+	return s.retryFunc(ctx, retryNumber, err)
 }
 
 var infiniteAttemptStrategyPtr = &InfiniteAttemptsStrategy{}
@@ -119,8 +118,7 @@ type InfiniteAttemptsStrategy struct {
 }
 
 func (s *InfiniteAttemptsStrategy) Attempt(_ context.Context, _ int, _ error) (attempt bool) {
-	attempt = true
-	return
+	return true
 }
 
 func MaxAttempts(attempts int) (strategy *MaxRetriesStrategy) {
@@ -139,7 +137,7 @@ func (s *MaxRetriesStrategy) Attempt(_ context.Context, _ int, _ error) (attempt
 	if attempt {
 		s.remainingAttempts--
 	}
-	return
+	return attempt
 }
 
 func FixedDelay(delay time.Duration) (strategy FixedDelayStrategy) {
@@ -153,8 +151,7 @@ type FixedDelayStrategy struct {
 }
 
 func (s FixedDelayStrategy) Attempt(ctx context.Context, _ int, _ error) (attempt bool) {
-	attempt = Sleep(ctx, s.delay)
-	return
+	return Sleep(ctx, s.delay)
 }
 
 func RandomDelay(minDelay time.Duration, maxDelay time.Duration) (strategy RandomDelayStrategy) {
@@ -175,8 +172,7 @@ func (s RandomDelayStrategy) Attempt(ctx context.Context, _ int, _ error) (attem
 	} else {
 		delay = s.minDelay + time.Duration(rand.Int63()%int64(s.maxDelay-s.minDelay))
 	}
-	attempt = Sleep(ctx, delay)
-	return
+	return Sleep(ctx, delay)
 }
 
 func LinearDelay(seed time.Duration, delta time.Duration) (strategy *LinearDelayStrategy) {
@@ -191,9 +187,9 @@ type LinearDelayStrategy struct {
 }
 
 func (s *LinearDelayStrategy) Attempt(ctx context.Context, _ int, _ error) (attempt bool) {
-	attempt = Sleep(ctx, s.delay)
+	delay := s.delay
 	s.delay = s.delay + s.delta
-	return
+	return Sleep(ctx, delay)
 }
 
 func ExpDelay(seed time.Duration) (strategy Strategy) {
@@ -212,9 +208,9 @@ type PowDelayStrategy struct {
 }
 
 func (s *PowDelayStrategy) Attempt(ctx context.Context, _ int, _ error) (attempt bool) {
-	attempt = Sleep(ctx, s.delay)
+	delay := s.delay
 	s.delay = time.Duration(float64(s.delay) * s.base)
-	return
+	return Sleep(ctx, delay)
 }
 
 func Is(err error) (strategy IsStrategy) {
@@ -228,8 +224,7 @@ type IsStrategy struct {
 }
 
 func (s *IsStrategy) Attempt(_ context.Context, _ int, err error) (attempt bool) {
-	attempt = errors.Is(err, s.err)
-	return
+	return errors.Is(err, s.err)
 }
 
 func Type(err error) (strategy TypeStrategy) {
@@ -247,20 +242,18 @@ type TypeStrategy struct {
 func (s *TypeStrategy) Attempt(_ context.Context, _ int, err error) (attempt bool) {
 	for err != nil {
 		if reflect.TypeOf(err).AssignableTo(s.targetType) {
-			attempt = true
-			break
+			return true
 		}
 		err = errors.Unwrap(err)
 	}
-	return
+	return false
 }
 
 func Sleep(ctx context.Context, delay time.Duration) (ok bool) {
 	select {
 	case <-time.After(delay):
-		ok = true
+		return true
 	case <-ctx.Done():
-		ok = false
+		return false
 	}
-	return
 }

@@ -88,7 +88,7 @@ func TestFunctionStrategy(t *testing.T) {
 	strategy := Function(func(ctx context.Context, retryNumber int, _ error) (attempt bool) {
 		attempt = rand.Int()>>1 == 0
 		value = attempt
-		return
+		return attempt
 	})
 	for retryNumber := 0; retryNumber < 1000; retryNumber++ {
 		attempt := strategy.Attempt(context.Background(), retryNumber, testError)
